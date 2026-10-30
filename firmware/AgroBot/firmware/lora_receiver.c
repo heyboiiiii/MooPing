@@ -16,6 +16,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+//Library to resolve hostnames to IP addresses.
+#include <netdb.h>
+
 #define SPI_DEVICE "/dev/spidev0.0"
 #define GPIO_CHIP_DEVICE "/dev/gpiochip0"
 #define GPIO_LORA_RESET 25
@@ -313,10 +316,28 @@ static int add_target(char *spec)
     memset(target, 0, sizeof(*target));
     target->address.sin_family = AF_INET;
     target->address.sin_port = htons((uint16_t)port);
+
+    /* Fast path: a numeric IPv4 address needs no resolver call. */
     if (inet_pton(AF_INET, spec, &target->address.sin_addr) != 1) {
-        fprintf(stderr, "Invalid IPv4 address in telemetry target '%s'\n", spec);
-        return -1;
+        /* Not a literal IP — resolve it via the NSS stack (supports mDNS / .local). */
+        struct addrinfo hints;
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family   = AF_INET;      /* rest of the code uses AF_INET sockets */
+        hints.ai_socktype = SOCK_STREAM;
+
+        struct addrinfo *resolved = NULL;
+        int rc = getaddrinfo(spec, NULL, &hints, &resolved);
+        if (rc != 0) {
+            fprintf(stderr, "Cannot resolve telemetry target '%s': %s\n",
+                    spec, gai_strerror(rc));
+            return -1;
+        }
+
+        struct sockaddr_in *sin = (struct sockaddr_in *)resolved->ai_addr;
+        target->address.sin_addr = sin->sin_addr;
+        freeaddrinfo(resolved);
     }
+
     snprintf(target->label, sizeof(target->label), "%s:%ld", spec, port);
     target_count++;
     return 0;
