@@ -105,8 +105,7 @@ CREATE TABLE gateways (
   gateway_uid      TEXT NOT NULL UNIQUE,
   name             TEXT,
   kind             TEXT NOT NULL DEFAULT 'gateway' CHECK (kind IN ('gateway', 'repeater')),
-  power_source     TEXT CHECK (power_source IN ('solar', 'grid', 'battery')),
-  battery_pct      REAL,
+  power_source     TEXT CHECK (power_source IN ('solar', 'grid')),
   radio            TEXT,                      -- e.g. 'LoRa 433 MHz'
   coverage_ha      REAL,
   api_key_hash     TEXT,
@@ -138,7 +137,6 @@ CREATE TABLE devices (
   label             TEXT,                     -- name shown in the app, e.g. 'C-084'
   hardware_version  TEXT,
   firmware_version  TEXT,
-  battery_model     TEXT,                     -- e.g. 'ER34615 (3.6V D)'
   tx_interval_s     INTEGER NOT NULL DEFAULT 60,
   storage_location  TEXT,                     -- where an unassigned collar is kept
   last_seen_at      TIMESTAMPTZ,
@@ -234,6 +232,7 @@ CREATE TABLE telemetry_readings (
 
 CREATE INDEX telemetry_animal_time_idx ON telemetry_readings (animal_id, recorded_at DESC);
 CREATE INDEX telemetry_device_time_idx ON telemetry_readings (device_id, recorded_at DESC);
+CREATE INDEX telemetry_gateway_time_idx ON telemetry_readings (gateway_id, recorded_at DESC);
 CREATE INDEX telemetry_time_brin       ON telemetry_readings USING BRIN (recorded_at);
 CREATE INDEX telemetry_location_gix    ON telemetry_readings USING GIST (location);
 
@@ -335,14 +334,14 @@ CREATE INDEX alert_notes_alert_idx ON alert_notes (alert_id, created_at);
 -- OPERATIONS
 -- =====================================================================
 
--- "Agendar cambio de pila" and other field work on a collar or gateway.
+-- Field work (repair, inspection) on a collar or gateway.
 CREATE TABLE maintenance_tasks (
   id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   organization_id  BIGINT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
   device_id        BIGINT REFERENCES devices(id) ON DELETE CASCADE,
   gateway_id       BIGINT REFERENCES gateways(id) ON DELETE CASCADE,
-  kind             TEXT NOT NULL DEFAULT 'battery_replacement'
-                   CHECK (kind IN ('battery_replacement', 'repair', 'inspection')),
+  kind             TEXT NOT NULL DEFAULT 'repair'
+                   CHECK (kind IN ('repair', 'inspection')),
   scheduled_for    DATE NOT NULL,
   notes            TEXT,
   status           TEXT NOT NULL DEFAULT 'scheduled'

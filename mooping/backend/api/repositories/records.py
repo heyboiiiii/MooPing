@@ -139,7 +139,6 @@ class DeviceRecord:
     label: str | None
     hardware_version: str | None
     firmware_version: str | None
-    battery_model: str | None
     tx_interval_s: int
     storage_location: str | None
     last_seen_at: datetime | None
@@ -185,13 +184,31 @@ class GatewayRecord:
     name: str | None
     kind: str
     power_source: str | None
-    battery_pct: float | None
     radio: str | None
     coverage_ha: float | None
     last_seen_at: datetime | None
     lat: float | None
     lng: float | None
     online: bool
+
+
+@dataclass
+class HeardCountRecord:
+    gateway_id: int
+    devices: int
+
+
+@dataclass
+class HeardDeviceRecord:
+    """A collar with readings received through one gateway lately."""
+    id: int
+    device_uid: str
+    label: str | None
+    owned: bool
+    animal_id: int | None
+    animal_name: str | None
+    animal_tag: str | None
+    last_heard_at: datetime
 
 
 @dataclass
